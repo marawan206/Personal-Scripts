@@ -38,7 +38,68 @@ def process_image(file_info):
         return True, input_path
     except Exception as e:
         return False, f"Error processing {filename}: {str(e)}"
-        
+
+def remove_metadata(input_folder):
+    if not input_folder:  # If no folder was selected
+        print("No folder selected. Exiting...")
+        return 0
+    
+    # Supported image formats
+    supported_formats = ('.png', '.jpg', '.jpeg', '.tiff', '.bmp')
+    
+    print("\nCollecting files...")
+    # Collect all image files
+    image_files = []
+    for root, dirs, files in os.walk(input_folder):
+        for filename in files:
+            if filename.lower().endswith(supported_formats):
+                input_path = os.path.join(root, filename)
+                image_files.append((input_path, filename))
+    
+    if not image_files:
+        print("No supported image files found.")
+        return 0
+    
+    total_files = len(image_files)
+    print(f"\nFound {total_files} images to process")
+    
+    # Use multiprocessing to process images
+    num_processes = cpu_count()  # Get number of CPU cores
+    print(f"Using {num_processes} CPU cores for processing...\n")
+    
+    # Process in batches
+    batch_size = 1000
+    processed_count = 0
+    errors = []
+    
+    with Pool(processes=num_processes) as pool:
+        # Process each batch with progress bar
+        for batch in chunks(image_files, batch_size):
+            results = list(tqdm(
+                pool.imap(process_image, batch),
+                total=len(batch),
+                desc="Processing images",
+                unit="image"
+            ))
+            
+            # Count successes and collect errors
+            for success, message in results:
+                if success:
+                    processed_count += 1
+                else:
+                    errors.append(message)
+    
+    # Report results
+    print("\nProcessing completed!")
+    print(f"Successfully processed: {processed_count} files")
+    
+    if errors:
+        print("\nErrors encountered:")
+        for error in errors:
+            print(error)
+    
+    return processed_count
+
 def main():
     try:
         print("=== Image Metadata Removal Tool ===")

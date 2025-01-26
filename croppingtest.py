@@ -7,6 +7,30 @@ from Katna.image import Image
 from Katna.writer import ImageCropDiskWriter
 import face_recognition
 
+def remove_white_borders(image):
+    # Convert to grayscale
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    
+    # Lower the threshold to catch more off-white pixels
+    _, thresh = cv2.threshold(gray, 240, 255, cv2.THRESH_BINARY_INV)
+    
+    # Find non-zero points (non-white pixels)
+    coords = cv2.findNonZero(thresh)
+    
+    if coords is None:
+        return image
+    
+    # Get the bounding rectangle of non-white pixels
+    x, y, w, h = cv2.boundingRect(coords)
+    
+    # Add a small margin to ensure we don't cut too tight
+    margin = 2
+    y = max(0, y - margin)
+    h = min(image.shape[0] - y, h + 2*margin)
+    
+    # Crop the image to remove white borders
+    return image[y:y+h, x:x+w]
+
 def crop_with_face_priority(file_path, crop_width, crop_height, output_folder):
     # Read the image
     image = cv2.imread(file_path)

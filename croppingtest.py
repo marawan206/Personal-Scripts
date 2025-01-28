@@ -58,6 +58,54 @@ class FaceAnalyzer:
                 best_match = face_location
 
         return best_match if best_similarity > 0.6 else None
+class ImageQualityChecker:
+    @staticmethod
+    def check_blur(image: np.ndarray, threshold: float = 50.0) -> bool:
+        """Check if image is blurry."""
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        return cv2.Laplacian(gray, cv2.CV_64F).var() > threshold
+
+    @staticmethod
+    def check_contrast(image: np.ndarray, threshold: float = 30.0) -> bool:
+        """Check if image has good contrast."""
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        return np.std(gray) > threshold
+
+    @staticmethod
+    def check_resolution(image: np.ndarray, min_resolution: Tuple[int, int] = (256, 256)) -> bool:
+        """Check if image meets minimum resolution requirements."""
+        height, width = image.shape[:2]
+        return width >= min_resolution[0] and height >= min_resolution[1]
+
+class BodyDetector:
+    def __init__(self):
+        self.mp_pose = mp.solutions.pose
+        self.pose = self.mp_pose.Pose(
+            static_image_mode=True,
+            model_complexity=2,
+            min_detection_confidence=0.5
+        )
+
+    def is_full_body(self, image: np.ndarray) -> bool:
+        """Detect if image contains full body."""
+        rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        results = self.pose.process(rgb_image)
+        
+        if not results.pose_landmarks:
+            return False
+
+        landmarks = results.pose_landmarks.landmark
+        visible_points = [landmark.visibility > 0.5 for landmark in landmarks]
+        
+        required_landmarks = [
+            self.mp_pose.PoseLandmark.LEFT_ANKLE,
+            self.mp_pose.PoseLandmark.RIGHT_ANKLE,
+            self.mp_pose.PoseLandmark.LEFT_SHOULDER,
+            self.mp_pose.PoseLandmark.RIGHT_SHOULDER
+        ]
+        
+        return all(visible_points[landmark.value] for landmark in required_landmarks)
+
 def main():
     root = tk.Tk()
     root.withdraw()

@@ -106,6 +106,79 @@ class BodyDetector:
         
         return all(visible_points[landmark.value] for landmark in required_landmarks)
 
+class ImageCropper:
+    def __init__(self):
+        self.face_analyzer = FaceAnalyzer()
+        self.quality_checker = ImageQualityChecker()
+        self.body_detector = BodyDetector()
+
+    def calculate_crop_dimensions(
+        self, 
+        image: np.ndarray, 
+        face_location: Tuple, 
+        category: int,
+        orientation: str
+    ) -> Tuple[int, int, int, int]:
+        """Calculate crop dimensions based on category and face orientation."""
+        height, width = image.shape[:2]
+        top, right, bottom, left = face_location
+        face_width = right - left
+        face_height = bottom - top
+        face_center_x = (left + right) // 2
+        face_center_y = (top + bottom) // 2
+
+        if category == 2:  # Neck-to-head shots
+            # More conservative margins for neck-to-head
+            top_margin = int(face_height * 1.0)  # Space above head
+            side_margin = int(face_width * 0.8)  # Space on sides
+            bottom_margin = int(face_height * 0.5)  # Space below chin
+        
+        elif category == 3:  # Chest/shoulders-up
+            # Larger margins for chest/shoulders
+            top_margin = int(face_height * 0.8)  # Less space above head
+            side_margin = int(face_width * 1.0)
+            bottom_margin = int(face_height * 1.8)  # More space for chest/shoulders
+
+        # Initial crop coordinates
+        crop_top = max(0, top - top_margin)
+        crop_bottom = min(height, bottom + bottom_margin)
+        crop_left = max(0, face_center_x - side_margin)
+        crop_right = min(width, face_center_x + side_margin)
+
+        # Ensure square aspect ratio while maintaining face position
+        crop_size = max(crop_right - crop_left, crop_bottom - crop_top)
+        
+        # Adjust crop window to maintain face position
+        if category == 2:
+            # For neck-to-head, position crop higher
+            center_y = top + face_height // 3
+        else:
+            # For chest/shoulders, position crop lower
+            center_y = top + face_height // 2
+
+        center_x = face_center_x
+
+        # Calculate final crop coordinates
+        half_size = crop_size // 2
+        crop_left = max(0, center_x - half_size)
+        crop_right = min(width, center_x + half_size)
+        crop_top = max(0, center_y - half_size)
+        crop_bottom = min(height, center_y + half_size)
+
+        # Adjust if crop touches boundaries
+        if crop_left == 0:
+            crop_right = crop_size
+        elif crop_right == width:
+            crop_left = width - crop_size
+
+        if crop_top == 0:
+            crop_bottom = crop_size
+        elif crop_bottom == height:
+            crop_top = height - crop_size
+
+        return int(crop_top), int(crop_right), int(crop_bottom), int(crop_left)
+
+
 def main():
     root = tk.Tk()
     root.withdraw()

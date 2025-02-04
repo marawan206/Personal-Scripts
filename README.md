@@ -14,6 +14,9 @@ A collection of Python scripts for data processing, image manipulation, and secu
   - Identifies and removes similar images from datasets
   - Helps in cleaning and optimizing image collections
   - Uses image comparison algorithms for similarity detection
+  
+- **rename.py**
+  - Script to rename images in a folder and create new sub-folder
 
 ### Metadata Management
 - **metadata.py**
